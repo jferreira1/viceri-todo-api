@@ -3,6 +3,7 @@ package com.viceri.app.controller;
 import com.viceri.app.dto.UserDTO;
 import com.viceri.app.dto.UserRequestDTO;
 import com.viceri.app.service.UserService;
+import jakarta.persistence.EntityExistsException;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -24,7 +25,12 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<UserDTO> createUser(@RequestBody @Valid UserRequestDTO userRequestDTO) {
-        return new ResponseEntity<>(userService.createUser(userRequestDTO), HttpStatus.CREATED);
+    public ResponseEntity<UserDTO> createUser(@RequestBody @Valid UserRequestDTO userRequestDTO) throws EntityExistsException {
+        try {
+            return new ResponseEntity<>(userService.createUser(userRequestDTO), HttpStatus.CREATED);
+        }
+        catch (EntityExistsException exception) {
+            return new ResponseEntity<>(HttpStatus.CONFLICT);
+        }
     }
 }

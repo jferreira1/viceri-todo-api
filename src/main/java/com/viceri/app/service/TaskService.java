@@ -5,11 +5,11 @@ import com.viceri.app.dto.TaskDTO;
 import com.viceri.app.enums.Priority;
 import com.viceri.app.mapper.TaskMapper;
 import com.viceri.app.model.Task;
-import com.viceri.app.model.User;
 import com.viceri.app.repository.TaskRepository;
 import com.viceri.app.repository.UserRepository;
+import com.viceri.app.security.JwtService;
 import jakarta.persistence.EntityNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,78 +17,89 @@ import java.util.UUID;
 
 @Service
 public class TaskService {
-
-    @Autowired
     private final TaskRepository taskRepository;
-    @Autowired
     private final UserRepository userRepository;
 
-    public TaskService(TaskRepository taskRepository, UserRepository userRepository) {
+    public TaskService(TaskRepository taskRepository, UserRepository userRepository, JwtService jwtService) {
         this.taskRepository = taskRepository;
         this.userRepository = userRepository;
     }
 
     public TaskDTO createTask(TaskRequestDTO taskRequestDTO) {
-
         Task task = new Task(taskRequestDTO.getDescription(), taskRequestDTO.getPriority());
         task.setCompleted(false);
-        List<User> users = userRepository.findAll();
-        if (!users.isEmpty()) {
-         task.setUser(users.get(0));
+        String emailUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(emailUser);
+        if (user.isEmpty()) {
+            throw new EntityNotFoundException("User not found");
         }
-
+        task.setUser(user.get());
         Task createdTask = taskRepository.save(task);
 
-        TaskDTO taskDTO = new TaskDTO();
-        taskDTO.setId(createdTask.getId());
-        taskDTO.setDescription(createdTask.getDescription());
-        taskDTO.setPriority(createdTask.getPriority());
-        taskDTO.setCompleted(createdTask.isCompleted());
-
-        return taskDTO;
+        return TaskMapper.toDTO(createdTask);
     }
 
-    public TaskDTO updateTask(UUID id, TaskRequestDTO taskRequestDTO) {
-
+    public TaskDTO updateTask(UUID id, TaskRequestDTO taskRequestDTO) throws Exception {
         Task task = taskRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Task not found."));
-
+        String emailUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(emailUser);
+        if (user.isEmpty()) {
+            throw new EntityNotFoundException("User not found");
+        }
+        if(!task.getUser().equals(user.get())) {
+            throw new Exception("Forbidden user access");
+        };
         task.setDescription(taskRequestDTO.getDescription());
         task.setPriority(taskRequestDTO.getPriority());
+        Task taskSaved = taskRepository.save(task);
 
-        taskRepository.save(task);
-
-        TaskDTO taskDTO = new TaskDTO();
-        taskDTO.setId(task.getId());
-        taskDTO.setDescription(task.getDescription());
-        taskDTO.setPriority(task.getPriority());
-        taskDTO.setCompleted(task.isCompleted());
-
-        return taskDTO;
+        return TaskMapper.toDTO(taskSaved);
     }
 
-    public TaskDTO completeTask(UUID id) {
+    public TaskDTO completeTask(UUID id) throws Exception {
         Task task = taskRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Task not found."));
+
+        String emailUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(emailUser);
+        if (user.isEmpty()) {
+            throw new EntityNotFoundException("User not found");
+        }
+        if(!task.getUser().equals(user.get())) {
+            throw new Exception("Forbidden user access");
+        };
 
         task.setCompleted(true);
-        taskRepository.save(task);
-        TaskDTO taskDTO = new TaskDTO();
-        taskDTO.setId(task.getId());
-        taskDTO.setDescription(task.getDescription());
-        taskDTO.setPriority(task.getPriority());
-        taskDTO.setCompleted(task.isCompleted());
+        Task taskSaved = taskRepository.save(task);
 
-        return taskDTO;
+        return TaskMapper.toDTO(taskSaved);
     }
 
-    public void deleteTask(UUID id) {
+    public void deleteTask(UUID id) throws Exception {
         Task task = taskRepository.findById(id).orElseThrow(() -> new EntityNotFoundException("Task not found."));
+
+        String emailUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(emailUser);
+        if (user.isEmpty()) {
+            throw new EntityNotFoundException("User not found");
+        }
+        if(!task.getUser().equals(user.get())) {
+            throw new Exception("Forbidden user access");
+        };
+
         taskRepository.deleteById(id);
     }
 
     public List<TaskDTO> listPendingTasks(Priority priority) {
-        if (priority == null) {
-            return TaskMapper.toDTOList(taskRepository.findAll());
+        String emailUser = SecurityContextHolder.getContext().getAuthentication().getName();
+        var user = userRepository.findByEmail(emailUser);
+        if (user.isEmpty()) {
+            throw new EntityNotFoundException("User not found");
         }
-        return TaskMapper.toDTOList(taskRepository.findAllByPriority(priority));
+
+        if (priority == null) {
+            return TaskMapper.toDTOList(taskRepository.findAllIncompleteByUser(user.get()));
+        }
+
+        return TaskMapper.toDTOList(taskRepository.findAllIncompleteByPriorityAndUser(priority, user.get()));
     }
 }
