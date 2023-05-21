@@ -1,40 +1,31 @@
-package com.viceri.app.model;
+package com.viceri.app.dto;
 
 import com.viceri.app.enums.Priority;
-import jakarta.persistence.*;
 
 import java.util.Objects;
 import java.util.UUID;
 
-@Entity
-@Table(name = "tasks")
-public class Task {
-    @Id
-    @GeneratedValue(strategy = GenerationType.UUID)
+public class TaskDTO {
     private UUID id;
-
     private String description;
-
-    @Enumerated(EnumType.STRING)
     private Priority priority;
-
-    @Column(nullable = false)
     private boolean isCompleted;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
-
-    public Task() {
+    public TaskDTO() {
     }
-
-    public Task(String description, Priority priority) {
+    public TaskDTO(UUID id, String description, Priority priority, boolean isCompleted) {
+        this.id = id;
         this.description = description;
         this.priority = priority;
+        this.isCompleted = isCompleted;
     }
 
     public UUID getId() {
         return id;
+    }
+
+    public void setId(UUID id) {
+        this.id = id;
     }
 
     public String getDescription() {
@@ -61,35 +52,26 @@ public class Task {
         isCompleted = completed;
     }
 
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-        Task task = (Task) o;
-        return isCompleted == task.isCompleted && Objects.equals(id, task.id) && Objects.equals(description, task.description) && priority == task.priority && Objects.equals(user, task.user);
+        TaskDTO taskDTO = (TaskDTO) o;
+        return isCompleted == taskDTO.isCompleted && Objects.equals(id, taskDTO.id) && Objects.equals(description, taskDTO.description) && priority == taskDTO.priority;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(id, description, priority, isCompleted, user);
+        return Objects.hash(id, description, priority, isCompleted);
     }
 
     @Override
     public String toString() {
-        return "Task{" +
+        return "TaskDTO{" +
                 "id=" + id +
                 ", description='" + description + '\'' +
                 ", priority=" + priority +
                 ", isCompleted=" + isCompleted +
-                ", user=" + user +
                 '}';
     }
 }
